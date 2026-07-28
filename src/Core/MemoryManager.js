@@ -44,6 +44,25 @@ const _cleanUpInterval = 10 * 1000;
 let _cleaningInProgress = false; // Prevents multiple clean cycles running at the same time
 let _cleanIndex = 0; // Tracks the current cleanup position
 let _filesToClean = []; // List of memory entries scheduled for removal
+
+/**
+ * Schedule non-critical cleanup without blocking rendering.
+ * Safari does not support requestIdleCallback, so yield through setTimeout there.
+ *
+ * @param {function} callback
+ * @return {number}
+ */
+const _scheduleIdleCallback =
+	typeof globalThis.requestIdleCallback === 'function'
+		? globalThis.requestIdleCallback.bind(globalThis)
+		: callback =>
+				setTimeout(() => {
+					callback({
+						didTimeout: false,
+						timeRemaining: () => Number.POSITIVE_INFINITY
+					});
+				}, 0);
+
 class MemoryManager {
 	/**
 	 * Get back data from memory
@@ -138,7 +157,7 @@ class MemoryManager {
 		_cleanIndex = 0;
 
 		// Perform cleanup incrementally during idle time to reduce frame drops
-		requestIdleCallback(function cleanChunk(deadline) {
+		const cleanChunk = deadline => {
 			let processed = 0;
 			// Limit the number of removals per idle callback
 			const maxProcess = Math.min(5, _filesToClean.length - _cleanIndex);
@@ -152,7 +171,7 @@ class MemoryManager {
 
 			if (_cleanIndex < _filesToClean.length) {
 				// Continue cleanup in the next idle period
-				requestIdleCallback(cleanChunk);
+				_scheduleIdleCallback(cleanChunk);
 			} else {
 				// Cleanup finished
 				_cleaningInProgress = false;
@@ -167,7 +186,9 @@ class MemoryManager {
 					);
 				}
 			}
-		});
+		};
+
+		_scheduleIdleCallback(cleanChunk);
 	};
 
 	/**

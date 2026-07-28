@@ -7041,41 +7041,55 @@ function loadLuaTable(file_list, table_name, callback, onEnd, contextFunc) {
 
 /**
  * Extracts a variable from a Lua file and converts it to a JavaScript value
- * @param {String} file_path - Path to the Lua file
- * @param {String} variable_name - Name of the variable to extract
+ * @param {String} filePath - Path to the Lua file
+ * @param {String} variableName - Name of the variable to extract
  * @param {function} callback - Function to run with the extracted value
  * @param {function} onEnd - Function to run once the process is complete
  *
  * @author guicaulada
  */
-function loadLuaValue(file_path, variable_name, callback, onEnd) {
+function loadLuaValue(filePath, variableName, callback, onEnd) {
+	let finished = false;
+	const finish = () => {
+		if (finished) {
+			return;
+		}
+
+		finished = true;
+		if (onEnd) {
+			onEnd();
+		}
+	};
+
 	try {
-		console.log('Loading file "' + file_path + '"...');
-		Client.loadFile(file_path, async function (file) {
-			try {
-				// Check if file is ArrayBuffer and convert to Uint8Array if necessary
-				const buffer = file instanceof ArrayBuffer ? new Uint8Array(file) : file;
+		console.log(`Loading file "${filePath}"...`);
+		Client.loadFile(
+			filePath,
+			async file => {
+				try {
+					// Check if file is ArrayBuffer and convert to Uint8Array if necessary
+					const buffer = file instanceof ArrayBuffer ? new Uint8Array(file) : file;
 
-				// Mount file
-				lua.mountFile(file_path, buffer);
+					// Mount file
+					lua.mountFile(filePath, buffer);
 
-				// Execute file
-				await lua.doFile(file_path);
+					// Execute file
+					await lua.doFile(filePath);
 
-				// Get context
-				const ctx = lua.ctx;
+					// Get context
+					const ctx = lua.ctx;
 
-				// Initialize result variable
-				let result = null;
+					// Initialize result variable
+					let result = null;
 
-				// Add key-value pairs to objects at any nesting level
-				ctx.extractValue = value => {
-					result = JSON.parse(userStringDecoder.decode(value));
-				};
+					// Add key-value pairs to objects at any nesting level
+					ctx.extractValue = value => {
+						result = JSON.parse(userStringDecoder.decode(value));
+					};
 
-				// Create and execute a wrapper Lua code to extract the variable
-				lua.doStringSync(
-					String.raw`
+					// Create and execute a wrapper Lua code to extract the variable
+					lua.doStringSync(
+						String.raw`
 							local function escape_str(str)
 								return str:gsub("\\", "\\\\"):gsub("\"", "\\\"")
 							end
@@ -7118,31 +7132,29 @@ function loadLuaValue(file_path, variable_name, callback, onEnd) {
 									return "null"
 								end
 							end
-						` +
-						`
-							extractValue(to_json(${variable_name}))
-						`
-				);
+							` +
+							`
+								extractValue(to_json(${variableName}))
+							`
+					);
 
-				// Unmount file
-				lua.unmountFile(file_path);
+					// Unmount file
+					lua.unmountFile(filePath);
 
-				// Return the extracted value
-				callback.call(null, result);
-			} catch (hException) {
-				console.error(`(${file_path}) error: `, hException);
-				callback.call(null, null);
-			} finally {
-				if (onEnd) {
-					onEnd.call();
+					// Return the extracted value
+					callback(result);
+				} catch (hException) {
+					console.error(`(${filePath}) error: `, hException);
+					callback(null);
+				} finally {
+					finish();
 				}
-			}
-		});
+			},
+			finish
+		);
 	} catch (e) {
 		console.error('error: ', e);
-		if (onEnd) {
-			onEnd.call();
-		}
+		finish();
 	}
 }
 
