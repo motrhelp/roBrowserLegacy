@@ -1,5 +1,48 @@
 # AI Agent Instructions for roBrowserLegacy
 
+## Personal Git and Worktree Workflow
+
+This clone has two linked worktrees with deliberately different purposes:
+
+- `/Users/motrhelp/git/roBrowserLegacy` is the private NiktoutRO-compatible checkout. It stays on
+  `codex/niktout-chaos-compat`, tracks `origin/codex/niktout-chaos-compat`, and must not be used as
+  the base of an upstream pull request.
+- `/Users/motrhelp/git/roBrowserLegacy-contrib` is the clean contribution checkout. It is based on
+  `upstream/master` and may initially have a detached HEAD. Before editing, create a purpose-named
+  branch such as `fix/short-description` from the current `upstream/master`.
+
+The remotes are intentionally configured as follows:
+
+- `origin` is the user's fork: `git@github.com:motrhelp/roBrowserLegacy.git`.
+- `upstream` is the project repository: `https://github.com/MrAntares/roBrowserLegacy.git`.
+
+Before any branch, staging, commit, push, worktree, or pull-request operation:
+
+1. Run `git worktree list`, `git status --short --branch`, `git branch -vv`, and `git remote -v`.
+2. Identify whether the requested work is private compatibility work or a clean upstream
+   contribution. If the intent is ambiguous, ask before making Git writes.
+3. Preserve unrelated changes and never stage `.DS_Store` files. Prefer explicit paths; do not use
+   `git add -A` or `git add .` in a mixed worktree.
+
+For upstream contributions:
+
+1. Work in `/Users/motrhelp/git/roBrowserLegacy-contrib`, not the private checkout.
+2. Fetch `upstream`, then create the contribution branch directly from `upstream/master`.
+3. Keep commits limited to the selected bug. Never merge or cherry-pick commit `546eac71` or the
+   private compatibility branch into a pull-request branch.
+4. Run the relevant tests and `npm run ci`, stage explicit files, commit intentionally, and push the
+   branch to `origin` with tracking.
+5. Never commit directly to `master`, force-push, or open a pull request unless the user explicitly
+   requests it. Pull requests target `MrAntares/roBrowserLegacy:master`.
+
+For private NiktoutRO compatibility work:
+
+1. Work in `/Users/motrhelp/git/roBrowserLegacy` on `codex/niktout-chaos-compat`.
+2. Push only to the matching branch on `origin`. Do not open an upstream pull request from it unless
+   the user explicitly changes this policy.
+3. If a clean contribution must be tested with the compatibility changes, use a separate temporary
+   integration branch. Keep the actual pull-request branch based only on `upstream/master`.
+
 ## Project Overview
 
 roBrowserLegacy is a web-based Ragnarok Online client built with ES6 modules and WebGL. It supports multiple platforms (browser, PWA, Electron desktop) and provides a complete game client experience.
